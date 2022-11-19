@@ -1,0 +1,94 @@
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:context="http://www.springframework.org/schema/context" xmlns:p="http://www.springframework.org/schema/p"
+       xmlns:aop="http://www.springframework.org/schema/aop" xmlns:tx="http://www.springframework.org/schema/tx"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+   http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+   http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop.xsd http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx.xsd ">
+    <!--配置凭证匹配器HashedCredentialsMatcher-->
+    <bean id="credentialsMatcher" class="org.apache.shiro.authc.credential.HashedCredentialsMatcher">
+        <!--算法名称-->
+        <property name="hashAlgorithmName" value="md5"></property>
+        <!--散列次数-->
+        <property name="hashIterations" value="3"/>
+    </bean>
+    <!--自定义Realm,注入凭证匹配器-->
+    <bean id="customRealm" class="cn.yunhe.realm.CustomRealm">
+        <property name="credentialsMatcher" ref="credentialsMatcher"/>
+    </bean>
+    <!--缓存管理器-->
+    <bean id="cacheManager" class="org.apache.shiro.cache.ehcache.EhCacheManager">
+        <property name="cacheManagerConfigFile"  value="classpath:shiro-ehcache.xml">		</property>
+    </bean>
+
+
+    <!--配置会话管理器-->
+    <bean id="sessionManager" class="org.apache.shiro.web.session.mgt.DefaultWebSessionManager">
+        <!-- session的失效时长，单位毫秒 -->
+        <property name="globalSessionTimeout" value="600000"/>
+        <!-- 删除失效的session -->
+        <property name="deleteInvalidSessions" value="true"/>
+    </bean>
+
+
+    <!--配置安全管理器,注入realm-->
+    <bean id="securityManager" class="org.apache.shiro.web.mgt.DefaultWebSecurityManager">
+        <property name="realm" ref="customRealm"></property>
+        <property name="cacheManager" ref="cacheManager"></property>
+        <!--注入会话管理器-->
+        <property name="sessionManager" ref="sessionManager"/>
+    </bean>
+    <!--配置FormAuthenticationFilter中的参数名称-->
+    <bean id="formAuthenticationFilter" class="org.apache.shiro.web.filter.authc.FormAuthenticationFilter">
+        <!--用户名参数-->
+        <property name="usernameParam" value="username"></property>
+        <!--密码参数-->
+        <property name="passwordParam" value="password"></property>
+        <!--认证失败请求的路径-->
+        <property name="loginUrl" value="/user/login"/>
+    </bean>
+
+    <bean id="logoutFilter" class = "org.apache.shiro.web.filter.authc.LogoutFilter">
+        <property name="redirectUrl" value="/index"></property>
+    </bean>
+
+
+
+    <!--shiroFilter:id必须与web.xml中配置的targetBeanName的值一致；
+    如果没有targetBeanName参数名称必须与filter-name的值一致-->
+    <bean id="shiroFilter" class="org.apache.shiro.spring.web.ShiroFilterFactoryBean">
+        <!--注入安全管理器-->
+        <property name="securityManager" ref="securityManager"/>
+        <!--认证失跳转的url, 当formAuthenticationFilter中没有配置loginUrl参数时生效，否则不生效-->
+        <property name="loginUrl" value="/user/login"/>
+        <!--认证成功的url-->
+        <property name="successUrl" value="/main"/>
+        <!--配自定义的过滤器-->
+        <property name="filters">
+            <map>
+                <entry key="authc" value-ref="formAuthenticationFilter"></entry>
+                <entry key="logout" value-ref="logoutFilter"></entry>
+
+            </map>
+        </property>
+        <!--配置过滤器链-->
+        <property name="filterChainDefinitions">
+            <value>
+                <!--登录页匿名访问-->
+                /freight = anon
+                /index = anon
+                <!--静态资源匿名访问-->
+                /css/** = anon
+                /js/** = anon
+                /images/** = anon
+                /skin/** = anon
+                /components/** = anon
+                /favicon.ico = anon
+                <!-- 表单认证过滤器 -->
+                /user/login = authc
+                <!--退出-->
+                /logout = logout
+            </value>
+        </property>
+    </bean>
+</beans>
